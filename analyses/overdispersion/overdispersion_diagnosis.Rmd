@@ -1,0 +1,70 @@
+---
+title: "Dealing with Overdispersion"
+author: "David Wells"
+date: "21/08/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+packages<-c('lattice','coefplot',"glmmTMB","dplyr")
+lapply(packages,require,character.only=T)
+
+```
+
+## Diagnosing types of overdispersion
+
+Poisson models are good for modelling count data as the response variable is constrained to be a positive integer. However, real-world data are often "overdispersed" which violates the assumptions of our poisson model. Overdispersion means that the count is more variable than expected. A normal distribution is characterised by a mean and a variance i.e. the spread of the data is indendent of the mean. By contrast, the spread of poisson data is determined by the mean; specifically the variance equal to the mean.
+
+The figure below shows a poisson distribution in solid black with a mean of three and a variance of 3 (because for poisson distributions mean = variance). It also shows an overdispersed distribution in dashed red which also has a mean of three but a much larger variance.
+
+```{r distributions}
+pois_d <- rpois(1000,3)
+over_d <- rnbinom(1000, size=0.5, mu=3)
+```
+
+```{r distributions_plot}
+ggplot(NULL, aes(x=pois_d))+geom_density(bw=1)+geom_density(data=NULL,aes(x=over_d), bw=1, colour="red", lty=2)+
+xlab("X") + ylab("Density") + 
+  #Just tidying up the graph
+theme(panel.background=element_rect(fill="white",colour=NA),panel.grid.major=element_blank(),
+panel.grid.minor=element_blank(),axis.line=element_line(colour="black",size=0.5,lineend="square"),
+axis.ticks.length=unit(0.2,"cm"),axis.text=element_text(size=12),
+axis.title=element_text(size=15))
+
+```
+
+Unfortunately you can't just compare the `mean()` and `var()` of your `y` variable to diagnose overdispersion. It works above because the  distributions depicted above are for a single value, the predicted value is always 3 (the mean). For diagnosing overdispersion we are interested in the variance arround the predicted value, not the total variance.
+
+The plot below shows the expected value on the x-axis and on the y-axis realised draws from a poisson distribution with that expected value. As the expected value increases so do the realised values (wouldn't be much of an expectation if they didn't) and the variance of these realised values increases to match. To check this we could compare the `mean()` and `var()` of `Realised` for each value of `Expected` but that is messy and we will rarely have much data for each value of `Expected`.
+
+
+```{r Expected_Realised}
+Expected <- runif(n=1000, min=0, max=100)
+Realised <- rpois(n=1000,lambda = Expected)
+```
+
+```{r Expected_Realised_plot, echo=FALSE}
+ggplot(data=NULL, aes(x=Expected, y=Realised, colour=Expected))+geom_point()+
+  #Just tidying up the graph
+    theme(panel.background=element_rect(fill="white",colour=NA),panel.grid.major=element_blank(),
+panel.grid.minor=element_blank(),axis.line=element_line(colour="black",size=0.5,lineend="square"),
+axis.ticks.length=unit(0.2,"cm"),axis.text=element_text(size=12),
+axis.title=element_text(size=15))+guides(colour=F)
+
+```
+
+Instead we can compare the residual variance of our model to the degrees of freedom. This a relatively simple way to check for overdispersion even for complex models like GLMMs (but see the caveats on [GLMM FAQ](http://bbolker.github.io/mixedmodels-misc/glmmFAQ.html#overdispersion)).
+
+But what type of overdispersion do you have?
+
+## Diagnosing type of overdispersion
+
+quais-poisson, negative binomial, zero-inflated, zero-truncated (underdispersion), additive overdispersion (observation level random effect)
+
+#################
+## To add/include
+
+Bolker's FAQ test of overdisersion
+Warning about zero inflation
+reference to the seal counting paper.
